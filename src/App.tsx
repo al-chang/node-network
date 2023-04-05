@@ -7,6 +7,7 @@ import Node from "./Node";
 const MIN_CONNECTION_DISTANCE = 150;
 const COLOR_SCALE = scaleLinear()
   .domain([0, MIN_CONNECTION_DISTANCE])
+  // @ts-ignore - d3 types are wrong
   .range(["black", "white"]);
 const STROKE_SCALE = scaleLinear()
   .domain([0, MIN_CONNECTION_DISTANCE])
@@ -14,7 +15,6 @@ const STROKE_SCALE = scaleLinear()
 
 function App() {
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [selection, setSelection] = useState<null | Selection<
     SVGSVGElement | null,
@@ -22,7 +22,7 @@ function App() {
     null,
     undefined
   >>(null);
-  const [nodes, _setNodes] = useState<Node[]>(
+  const nodesRef = useRef<Node[]>(
     Array.from({ length: 75 }, () => {
       return new Node(
         randomNumber(0, window.innerWidth),
@@ -37,21 +37,7 @@ function App() {
       return;
     }
 
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY };
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-
     let animationFrameId: number;
-
-    selection
-      .selectAll("circle")
-      .data(nodes)
-      .enter()
-      .append("circle")
-      .attr("cx", (d) => d.getX())
-      .attr("cy", (d) => d.getY())
-      .attr("r", 10);
 
     const drawLine = (node1: Node, node2: Node) => {
       const distance = node1.distanceToNode(node2);
@@ -70,25 +56,23 @@ function App() {
     const tick = () => {
       selection.selectAll("line").remove();
 
-      nodes.forEach((d, i) => {
+      nodesRef.current.forEach((d, i) => {
         const node = d as Node;
         if (node.isOutOfBounds(window.innerWidth, window.innerHeight)) {
-          node.bounce();
+          const newNode = new Node(
+            randomNumber(0, window.innerWidth),
+            randomNumber(0, window.innerHeight)
+          );
+          nodesRef.current = [
+            ...nodesRef.current.filter((n) => n !== node),
+            newNode,
+          ];
         }
 
-        if (node.isWithinPoint(mouseRef.current.x, mouseRef.current.y, 200)) {
-          console.log(mouseRef.current);
-          const angle = angleRad(mouseRef.current, node);
-          const offsetX = Math.cos(angle) * 10;
-          const offsetY = Math.sin(angle) * 10;
-          node.move(offsetX, offsetY);
-          node.bounce();
-        } else {
-          node.move();
-        }
+        node.move();
 
         // check if node is within 50px to another node
-        nodes.slice(i).forEach((otherNode) => {
+        nodesRef.current.slice(i).forEach((otherNode) => {
           if (node === otherNode) return;
           if (node.isWithinNode(otherNode, MIN_CONNECTION_DISTANCE)) {
             drawLine(node, otherNode);
@@ -96,17 +80,12 @@ function App() {
         });
       });
 
-      selection
-        .selectAll("circle")
-        .attr("cx", (d) => (d as Node).getX())
-        .attr("cy", (d) => (d as Node).getY());
       animationFrameId = window.requestAnimationFrame(tick);
     };
 
     tick();
 
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
       window.cancelAnimationFrame(animationFrameId);
     };
   }, [selection, setSelection]);

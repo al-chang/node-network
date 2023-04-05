@@ -5,8 +5,8 @@ class Node {
   private ySpeed: number;
 
   constructor(private x: number, private y: number) {
-    this.xSpeed = randomNumber(1, 2);
-    this.ySpeed = randomNumber(1, 2);
+    this.xSpeed = randomNumber(-1, 1);
+    this.ySpeed = randomNumber(-1, 1);
   }
 
   public getX() {
